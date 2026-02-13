@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英単語テスト</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+        padding-top: 40px;
+    }
+    h1 { text-align: center; }
+    .container { text-align: center; margin-top: 10px; }
+    label { font-size: 18px; margin-right: 10px; }
+    input { font-size: 16px; padding: 5px; margin: 10px; }
+    button { font-size: 18px; padding: 10px 20px; margin: 10px; cursor: pointer; }
+    #timer { font-size: 24px; font-weight: bold; color: #d9534f; }
+    #question, #answer, #result { font-size: 18px; margin-top: 20px; }
+    #timerContainer { margin-top: 20px; font-size: 30px; font-weight: bold; color: #333; }
+    table { border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #999; padding: 8px 12px; }
+    th { background-color: #ddd; }
+
+    /* ✨ 早打ちスタイルに統一したポモドーロタイマー CSS ✨ */
+    #pomodoro-timer {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 220px;
+        background-color: rgba(20,22,38,0.95);
+        color: #fff;
+        border: 2px solid #eebbc3;
+        border-radius: 14px;
+        padding: 12px;
+        text-align: center;
+        font-family: "Segoe UI", sans-serif;
+        z-index: 9999;
+        cursor: move;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.45);
+    }
+    #pomodoro-time {
+        font-size: 1.8em;
+        font-weight: 600;
+        margin-top: 4px;
+    }
+    #pomodoro-label {
+        font-size: 0.9em;
+        margin-top: 2px;
+        opacity: 0.8;
+    }
+    #pomodoro-timer button {
+        font-size: 0.95em;
+        margin: 3px;
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: none;
+        background: #eebbc3;
+        color: #232946;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    #pomodoro-timer button:hover {
+        background: #ffd6dd;
+    }
+</style>
+</head>
+<body>
+
+<h1>英単語テスト</h1>
+
+<div class="container">
+    <label for="startRange">開始番号:</label>
+    <input type="number" id="startRange" value="1" min="1"><br>
+
+    <label for="endRange">終了番号:</label>
+    <input type="number" id="endRange" value="75" min="1"><br>
+
+    <label for="testTime">テスト時間（分）:</label>
+    <input type="number" id="testTime" value="30" min="0" max="120"><br>
+
+    <button id="startButton">スタート</button>
+</div>
+
+<div id="timerContainer" style="display:none;">
+    <div id="timer">30:00</div>
+</div>
+
+<div id="question"></div>
+<div id="answer"></div>
+<div id="result"></div>
+
+<!-- ポモドーロタイマー -->
+<div id="pomodoro-timer">
+  <div style="font-size:1em; margin-bottom:5px;">ポモドーロタイマー</div>
+  <div id="pomodoro-time" style="font-size:1.8em;">25:00</div>
+  <div id="pomodoro-label" style="font-size:0.9em; margin-top:3px;">作業</div>
+  <button id="pomodoro-start">開始</button>
+  <button id="pomodoro-stop">停止</button>
+  <button id="pomodoro-reset">リセット</button>
+</div>
+
+<script>
+/* ===========================
+   ポモドーロタイマー同期用
+=========================== */
+const timerEl = document.getElementById('pomodoro-timer');
+const timeEl = document.getElementById('pomodoro-time');
+const labelEl = document.getElementById('pomodoro-label');
+const startBtn = document.getElementById('pomodoro-start');
+const stopBtn = document.getElementById('pomodoro-stop');
+const resetBtn = document.getElementById('pomodoro-reset');
+
+const times = [25,5,25,5];
+const labels = ["作業","休憩","作業","休憩"];
+let index = parseInt(localStorage.getItem('pomodoroIndex')) || 0;
+let seconds = parseInt(localStorage.getItem('pomodoroSeconds')) || times[index]*60;
+let interval = null;
+
+function updateDisplay(){
+    let min = Math.floor(seconds/60);
+    let sec = seconds%60;
+    if(sec<10) sec = '0'+sec;
+    timeEl.textContent = `${min}:${sec}`;
+    labelEl.textContent = labels[index];
+}
+
+function countdown(){
+    if(seconds <= 0){
+        index = (index + 1) % times.length;
+        seconds = times[index]*60;
+        localStorage.setItem('pomodoroIndex', index);
+    } else {
+        seconds--;
+    }
+    localStorage.setItem('pomodoroSeconds', seconds);
+    updateDisplay();
+}
+
+startBtn.onclick = () => {
+    if(!interval){
+        interval = setInterval(countdown, 1000);
+        localStorage.setItem('pomodoroRunning', 'true');
+    }
+};
+stopBtn.onclick = () => {
+    if(interval){
+        clearInterval(interval);
+        interval = null;
+        localStorage.setItem('pomodoroRunning', 'false');
+    }
+};
+resetBtn.onclick = () => {
+    clearInterval(interval);
+    interval = null;
+    index = 0;
+    seconds = times[index]*60;
+    localStorage.setItem('pomodoroSeconds', seconds);
+    localStorage.setItem('pomodoroIndex', index);
+    localStorage.setItem('pomodoroRunning', 'false');
+    updateDisplay();
+};
+
+function loadPomodoroState(){
+    index = parseInt(localStorage.getItem('pomodoroIndex')) || 0;
+    seconds = parseInt(localStorage.getItem('pomodoroSeconds')) || times[index]*60;
+    updateDisplay();
+}
+
+window.addEventListener('storage', (e)=>{
+    if(e.key==='pomodoroSeconds' || e.key==='pomodoroIndex' || e.key==='pomodoroRunning'){
+        loadPomodoroState();
+        if(localStorage.getItem('pomodoroRunning')==='true' && !interval){
+            interval = setInterval(countdown,1000);
+        } else if(localStorage.getItem('pomodoroRunning')==='false' && interval){
+            clearInterval(interval);
+            interval=null;
+        }
+    }
+});
+
+loadPomodoroState();
+if(localStorage.getItem('pomodoroRunning')==='true' && !interval){
+    interval = setInterval(countdown,1000);
+}
+
+/* --- タイマーのドラッグ --- */
+let isDragging=false, offsetX=0, offsetY=0;
+timerEl.addEventListener('mousedown', e=>{
+    isDragging=true;
+    offsetX = e.clientX - timerEl.offsetLeft;
+    offsetY = e.clientY - timerEl.offsetTop;
+});
+document.addEventListener('mousemove', e=>{
+    if(isDragging){
+      timerEl.style.left = (e.clientX - offsetX) + 'px';
+      timerEl.style.top = (e.clientY - offsetY) + 'px';
+    }
+});
+document.addEventListener('mouseup', ()=>{
+    if(isDragging){
+      isDragging=false;
+      localStorage.setItem('pomodoroLeft', timerEl.style.left);
+      localStorage.setItem('pomodoroTop', timerEl.style.top);
+    }
+});
+
+const savedLeft = localStorage.getItem('pomodoroLeft');
+const savedTop = localStorage.getItem('pomodoroTop');
+if(savedLeft) timerEl.style.left = savedLeft;
+if(savedTop) timerEl.style.top = savedTop;
+
+/* ===========================
+   元の英単語テストコード
+=========================== */
+let allWords = [];
+let currentQuestionIndex = 0;
+let correctAnswers = 0;
+let testWords = [];
+let timerInterval;
+let timeRemaining = 0;
+let userAnswers = [];
+
+async function loadWords() {
+    try {
+        const response = await fetch('words.json');
+        const data = await response.json();
+        allWords = data;
+    } catch (error) {
+        alert("単語リストの読み込みに失敗しました。");
+    }
+}
+
+function selectWordsInRange(start, end, numWords) {
+    const filteredWords = allWords.filter(word => word.id >= start && word.id <= end);
+    if (filteredWords.length === 0) {
+        alert("指定した範囲に単語がありません。");
+        return [];
+    }
+    if (filteredWords.length > numWords) return shuffleArray(filteredWords).slice(0, numWords);
+    return shuffleArray(filteredWords);
+}
+
+function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function updateTestTimer() {
+    let minutes = Math.floor(timeRemaining / 60);
+    let seconds = timeRemaining % 60;
+    if (seconds < 10) seconds = '0' + seconds;
+    document.getElementById('timer').textContent = `${minutes}:${seconds}`;
+    timeRemaining--;
+    if(timeRemaining<0){
+        clearInterval(timerInterval);
+        alert('時間になりました！テストを開始します。');
+        startTest();
+    }
+}
+
+function startTest() {
+    currentQuestionIndex = 0;
+    correctAnswers = 0;
+    userAnswers = [];
+    showQuestion(testWords[currentQuestionIndex]);
+}
+
+function showQuestion(word) {
+    const jpText = word.jp.replace(/[、;；]/g, '・');
+    document.getElementById('question').textContent = `日本語: ${jpText}`;
+    document.getElementById('answer').innerHTML = `
+        英語: <input type="text" id="userAnswer" placeholder="英語の答えを入力">
+        <br>カタカナ: <input type="text" id="userKatakanaAnswer" placeholder="カタカナの答えを入力">
+        <button onclick="checkAnswer()">答える</button>`;
+}
+
+function checkAnswer() {
+    if (!testWords || !testWords[currentQuestionIndex]) return;
+    const word = testWords[currentQuestionIndex];
+    const userAnswer = document.getElementById('userAnswer').value.trim();
+    const userKatakanaAnswer = document.getElementById('userKatakanaAnswer').value.trim();
+    userAnswers.push({jp: word.jp, correct: word.en, user: userAnswer, katakana: userKatakanaAnswer});
+    if(userAnswer.toLowerCase() === word.en.toLowerCase()) correctAnswers++;
+    currentQuestionIndex++;
+    if(currentQuestionIndex < testWords.length) showQuestion(testWords[currentQuestionIndex]);
+    else showResults();
+}
+
+function showResults() {
+    document.getElementById('question').style.display='none';
+    document.getElementById('answer').style.display='none';
+    let resultHTML = `<h2>テスト終了！</h2><p>正解数: ${correctAnswers} / ${testWords.length}</p>`;
+    resultHTML += `<table><tr><th>日本語</th><th>正解（英語）</th><th>あなたの答え</th><th>カタカナ</th></tr>`;
+    userAnswers.forEach(a=>{
+        const isCorrect=a.user.toLowerCase()===a.correct.toLowerCase();
+        const jpText=a.jp.replace(/[、;；]/g,'・');
+        resultHTML+=`<tr style="background-color:${isCorrect?'#c8e6c9':'#ffcdd2'}"><td>${jpText}</td><td>${a.correct}</td><td>${a.user}</td><td>${a.katakana}</td></tr>`;
+    });
+    resultHTML+='</table>';
+    document.getElementById('result').innerHTML=resultHTML;
+}
+
+document.getElementById('startButton').addEventListener('click', async function() {
+    await loadWords();
+    const startRange = parseInt(document.getElementById('startRange').value, 10);
+    const endRange = parseInt(document.getElementById('endRange').value, 10);
+    const numWords = 30;
+    const testTimeMinutes = parseInt(document.getElementById('testTime').value, 10);
+    if (isNaN(testTimeMinutes) || testTimeMinutes < 0) {
+        alert('テスト時間を正しく入力してください。');
+        return;
+    }
+    testWords = selectWordsInRange(startRange, endRange, numWords);
+    if(testWords.length>0){
+        document.getElementById('startButton').style.display='none';
+        document.getElementById('timerContainer').style.display='block';
+        timeRemaining = testTimeMinutes*60;
+        let minutes=Math.floor(timeRemaining/60);
+        let seconds=timeRemaining%60;
+        if(seconds<10) seconds='0'+seconds;
+        document.getElementById('timer').textContent=`${minutes}:${seconds}`;
+        timerInterval=setInterval(updateTestTimer,1000);
+        updateTestTimer();
+    }
+});
+</script>
+
+</body>
+</html>
